@@ -61,8 +61,8 @@ exports.loginUser = async (req, res) => {
     }
 
     // Debugging: Check the entered and stored passwords
-    console.log("Entered password:", password);
-    console.log("Stored password hash:", user.password);
+    //console.log("Entered password:", password);
+    //console.log("Stored password hash:", user.password);
 
     // Trim password to avoid issues with whitespace
     const trimmedPassword = password.trim();

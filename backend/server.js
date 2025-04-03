@@ -4,6 +4,8 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const incomeRoute = require("./routes/incomeRoute");
+const expenseRoute = require("./routes/expenseRoute");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 const path = require("path");
 
 const app = express();
@@ -26,6 +28,8 @@ connectDB()
 // Routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/income", incomeRoute);
+app.use("/api/v1/expense", expenseRoute);
+app.use("/api/v1/dashboard", dashboardRoutes);
 
 //serve upload folder
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
