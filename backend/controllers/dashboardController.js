@@ -1,74 +1,65 @@
 const Income = require("../models/Income");
 const Expense = require("../models/Expense");
-const { isValidObjectId, Types } = require("mongoose");
+const { Types } = require("mongoose");
 
 // Get Dashboard Data
 exports.getDashboardData = async (req, res) => {
   try {
     const userId = req.user.id;
+
+    // Define date ranges
+    const now = new Date();
+    const last60Days = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Convert userId to ObjectId
     const userObjectId = new Types.ObjectId(String(userId));
 
-    // Fetch total income
-    const totalIncome = await Income.aggregate([
+    // Aggregate total income
+    const incomeResult = await Income.aggregate([
       { $match: { userId: userObjectId } },
       { $group: { _id: null, total: { $sum: "$amount" } } }
     ]);
 
-    console.log("totalIncome", { totalIncome, userId: isValidObjectId(userId) });
-
-    // Fetch total expense
-    const totalExpense = await Expense.aggregate([
+    // Aggregate total expense
+    const expenseResult = await Expense.aggregate([
       { $match: { userId: userObjectId } },
       { $group: { _id: null, total: { $sum: "$amount" } } }
     ]);
 
-    // Ensure totals are extracted properly
-    const incomeTotal = totalIncome.length > 0 ? totalIncome[0].total : 0;
-    const expenseTotal = totalExpense.length > 0 ? totalExpense[0].total : 0;
+    const totalIncome = incomeResult.length ? incomeResult[0].total : 0;
+    const totalExpense = expenseResult.length ? expenseResult[0].total : 0;
 
-    // Get income transactions in the last 60 days
-    const last60DaysIncomeTransaction = await Income.find({
-      userId,
-      date: { $gte: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) },
-    }).sort({ date: -1 });
+    // Income in the last 60 days
+    const recentIncome = await Income.find({ userId, date: { $gte: last60Days } });
+    const incomeLast60Days = recentIncome.reduce((sum, txn) => sum + txn.amount, 0);
 
-    // Calculate income in the last 60 days
-    const incomeLast60Days = last60DaysIncomeTransaction.reduce(
-      (sum, transaction) => sum + transaction.amount,
-      0
-    );
+    // Expense in the last 30 days
+    const recentExpense = await Expense.find({ userId, date: { $gte: last30Days } });
+    const expenseLast30Days = recentExpense.reduce((sum, txn) => sum + txn.amount, 0);
 
-    // Get expense transactions in the last 30 days
-    const last30DaysExpenseTransaction = await Expense.find({
-      userId,
-      date: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-    }).sort({ date: -1 });
+    // Last 5 income transactions
+    const lastIncome = await Income.find({ userId })
+      .sort({ date: -1 })
+      .limit(5)
+      .select("_id amount date");
 
-    // Calculate expenses in the last 30 days
-    const expenseLast30Days = last30DaysExpenseTransaction.reduce(
-      (sum, transaction) => sum + transaction.amount,
-      0
-    );
+    // Last 5 expense transactions
+    const lastExpense = await Expense.find({ userId })
+      .sort({ date: -1 })
+      .limit(5)
+      .select("_id amount date");
 
-    // Fetch last 5 transactions (income + expense)
+    // Merge and sort all recent transactions
     const lastTransactions = [
-      ...(await Income.find({ userId }).sort({ date: -1 }).limit(5)).map((txn) => ({
-        _id: txn._id,
-        amount: txn.amount,
-        date: txn.date,
-        type: "income",
-      })),
-      ...(await Expense.find({ userId }).sort({ date: -1 }).limit(5)).map((txn) => ({
-        _id: txn._id,
-        amount: txn.amount,
-        date: txn.date,
-        type: "expense",
-      })),
-    ];
+      ...lastIncome.map(txn => ({ ...txn.toObject(), type: "income" })),
+      ...lastExpense.map(txn => ({ ...txn.toObject(), type: "expense" })),
+    ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
+    // Send response
     res.status(200).json({
-      totalIncome: incomeTotal,
-      totalExpense: expenseTotal,
+      totalIncome,
+      totalExpense,
       incomeLast60Days,
       expenseLast30Days,
       lastTransactions,

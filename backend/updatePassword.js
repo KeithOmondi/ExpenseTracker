@@ -7,11 +7,11 @@ const updatePassword = async () => {
     
   });
 
-  const password = "dennis";
+  const password = "omondi";
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  await User.updateOne({ email: "denniskeith62@gmail.com" }, { password: hashedPassword });
+  await User.updateOne({ email: "kd.omondi1@gmail.com" }, { password: hashedPassword });
 
   console.log("Password updated successfully!");
   mongoose.connection.close();
